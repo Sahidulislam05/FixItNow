@@ -1,0 +1,63 @@
+import httpStatus from "http-status";
+import { BookingStatus } from "../../../generated/prisma/enums";
+import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/AppError";
+import { ICreateReviewPayload } from "./review.interface";
+
+// review তৈরি + technician এর avgRating/totalReviews recalculate —
+// একটা $transaction এ, যাতে দুইটা অপারেশন atomically হয়
+// (ref1 এর post.service.ts এর $transaction কনভেনশন অনুযায়ী)
+const createReviewIntoDB = async (customerId: string, payload: ICreateReviewPayload) => {
+    const { bookingId, rating, comment } = payload;
+
+    const booking = await prisma.booking.findUniqueOrThrow({
+        where: { id: bookingId },
+        include: { review: true }
+    });
+
+    if (booking.customerId !== customerId) {
+        throw new AppError(httpStatus.FORBIDDEN, "You are not the owner of this booking");
+    }
+
+    if (booking.status !== BookingStatus.COMPLETED) {
+        throw new AppError(httpStatus.BAD_REQUEST, "You can only review a booking after the job is completed");
+    }
+
+    if (booking.review) {
+        throw new AppError(httpStatus.CONFLICT, "You have already reviewed this booking");
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+        const review = await tx.review.create({
+            data: {
+                bookingId,
+                customerId,
+                technicianId: booking.technicianId,
+                rating,
+                comment,
+            }
+        });
+
+        const aggregate = await tx.review.aggregate({
+            where: { technicianId: booking.technicianId },
+            _avg: { rating: true },
+            _count: { rating: true },
+        });
+
+        await tx.technicianProfile.update({
+            where: { userId: booking.technicianId },
+            data: {
+                avgRating: aggregate._avg.rating ?? 0,
+                totalReviews: aggregate._count.rating,
+            }
+        });
+
+        return review;
+    });
+
+    return result;
+}
+
+export const reviewService = {
+    createReviewIntoDB
+}
