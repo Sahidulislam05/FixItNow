@@ -8,15 +8,14 @@ import { adminValidation } from "./admin.validation";
 
 const router = Router();
 
-// এই পুরো router টাই ADMIN-only — router.use() দিয়ে একবারেই সব route এ auth বসানো হলো
 router.use(auth(Role.ADMIN));
 
 router.get("/users", adminController.getAllUsers);
 
 router.patch(
-    "/users/:id",
-    validateRequest(adminValidation.updateUserStatusValidationSchema),
-    adminController.updateUserStatus
+  "/users/:id",
+  validateRequest(adminValidation.updateUserStatusValidationSchema),
+  adminController.updateUserStatus,
 );
 
 router.get("/bookings", adminController.getAllBookings);
@@ -24,9 +23,9 @@ router.get("/bookings", adminController.getAllBookings);
 router.get("/categories", adminController.getAllCategories);
 
 router.post(
-    "/categories",
-    validateRequest(categoryValidation.createCategoryValidationSchema),
-    adminController.createCategory
+  "/categories",
+  validateRequest(categoryValidation.createCategoryValidationSchema),
+  adminController.createCategory,
 );
 
 export const adminRoutes = router;
