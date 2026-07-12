@@ -4,7 +4,6 @@
   "description": "FixItNow - Home Services Marketplace Backend API",
   "license": "ISC",
   "author": "",
-  "type": "module",
   "main": "server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
